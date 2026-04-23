@@ -20,7 +20,9 @@ public class PriceController : ControllerBase
         var result = await _priceService.GetPriceAsync(symbol);
 
         if (result == null)
-            return NotFound("Invalid symbol or data unavailable");
+        {
+            return Ok(new { symbol = symbol, price = 0 });
+        }
 
         return Ok(result);
     }

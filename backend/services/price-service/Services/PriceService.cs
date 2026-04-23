@@ -1,53 +1,29 @@
-using System.Text.Json;
 using price_service.Models;
 
 namespace price_service.Services;
 
 public class PriceService : IPriceService
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _apiKey;
+    private static readonly Dictionary<string, decimal> _prices = new();
+    private static readonly Random _random = new();
 
-    public PriceService(HttpClient httpClient, IConfiguration configuration)
+    public Task<PriceResponse?> GetPriceAsync(string symbol)
     {
-        _httpClient = httpClient;
-        _apiKey = configuration["AlphaVantage:ApiKey"] ?? string.Empty;
-    }
+        symbol = symbol.ToUpper();
 
-    public async Task<PriceResponse?> GetPriceAsync(string symbol)
-    {
-        try
+        if (!_prices.ContainsKey(symbol))
         {
-            if (string.IsNullOrWhiteSpace(_apiKey))
-                return null;
-
-            var url = $"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={_apiKey}";
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode)
-                return null;
-
-            var content = await response.Content.ReadAsStringAsync();
-
-            using var doc = JsonDocument.Parse(content);
-
-            var globalQuote = doc.RootElement.GetProperty("Global Quote");
-
-            if (!globalQuote.TryGetProperty("05. price", out var priceElement))
-                return null;
-
-            var price = decimal.Parse(priceElement.GetString()!);
-
-            return new PriceResponse
-            {
-                Symbol = symbol,
-                Price = price
-            };
+            _prices[symbol] = _random.Next(100, 1000);
         }
-        catch
+
+        var change = (decimal)(_random.NextDouble() * 4 - 2);
+
+        _prices[symbol] += change;
+
+        return Task.FromResult<PriceResponse?>(new PriceResponse
         {
-            return null;
-        }
+            Symbol = symbol,
+            Price = Math.Round(_prices[symbol], 2)
+        });
     }
 }

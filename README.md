@@ -51,8 +51,9 @@ stock-monitor/
 
 The repository currently includes:
 
-- A price service for fetching stock market data
+- A price service with mock stock price generation for development
 - An Angular frontend for the web experience
+- A watchlist with automatic price refresh and price movement indicators
 - Basic API structure for future expansion
 - Development-time API testing via Swagger
 
@@ -63,13 +64,7 @@ The repository currently includes:
 ### Prerequisites
 
 - .NET 8 SDK
-- Alpha Vantage API key
-
-### Configure the Price Service
-
-Before running the price service, add your Alpha Vantage API key to the service configuration.
-
-For local development, this can be set in `backend/services/price-service/appsettings.Development.json`.
+- Node.js and npm
 
 ### Run the Backend
 
@@ -78,16 +73,19 @@ cd backend/services/price-service
 dotnet run
 ```
 
-Access Swagger UI via the URL shown in the terminal.
+The backend runs on `http://localhost:5062`.
+
+Swagger is available in development.
 
 ### Run the Frontend
 
 ```bash
 cd frontend/web-app
+npm install
 npm start
 ```
 
-The frontend runs as a separate Angular application during development.
+The frontend runs on `http://localhost:4200` and connects to the backend at `http://localhost:5062`.
 
 ---
 
@@ -105,6 +103,7 @@ The frontend runs as a separate Angular application during development.
 
 - Price service
 - Web frontend foundation
+- Watchlist auto-refresh
 - Basic API structure
 
 ### Phase 2

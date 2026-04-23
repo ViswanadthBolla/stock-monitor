@@ -1,9 +1,46 @@
-<h2>Stock Monitor</h2>
+<h2>📈 Stock Monitor</h2>
 
-<input [(ngModel)]="symbol" placeholder="Enter symbol (e.g. IBM)" />
-<button (click)="fetchPrice()">Get Price</button>
+<div style="margin-bottom: 10px;">
+  <input [(ngModel)]="symbol" placeholder="Enter symbol (e.g. AAPL)" />
+  <button (click)="addStock()">Add</button>
+</div>
 
-<div *ngIf="price">
-  <h3>{{price.symbol}}</h3>
-  <p>Price: {{price.price}}</p>
+<div *ngIf="error" style="color:red; margin-bottom:10px;">
+  {{error}}
+</div>
+
+<hr>
+
+<h3>Watchlist</h3>
+
+<div *ngIf="watchlist.length === 0">
+  No stocks added
+</div>
+
+<div *ngFor="let stock of watchlist; let i = index; trackBy: trackBySymbol"
+  style="border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px;">
+
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+
+    <div>
+      <strong>{{stock.symbol}}</strong>
+      <div *ngIf="stock.loading" style="font-size:12px;">Updating...</div>
+    </div>
+
+    <div>
+      <span *ngIf="!stock.loading"
+        [style.color]="stock.price > stock.previousPrice ? 'green' :
+                       stock.price < stock.previousPrice ? 'red' : 'black'">
+
+        ₹ {{stock.price}}
+
+        <span *ngIf="stock.price > stock.previousPrice"> ↑</span>
+        <span *ngIf="stock.price < stock.previousPrice"> ↓</span>
+
+      </span>
+    </div>
+
+    <button (click)="removeStock(i)">❌</button>
+  </div>
+
 </div>

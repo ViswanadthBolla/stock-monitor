@@ -6,8 +6,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Register HttpClient + Service
-builder.Services.AddHttpClient<IPriceService, PriceService>();
+builder.Services.AddSingleton<IPriceService, PriceService>();
 
 builder.Services.AddCors(options =>
 {
