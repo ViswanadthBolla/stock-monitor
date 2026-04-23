@@ -32,6 +32,7 @@ stock-monitor/
 │   └── services/
 │       └── price-service/
 ├── frontend/
+│   └── web-app/
 ├── docker/
 └── README.md
 ```
@@ -42,7 +43,7 @@ stock-monitor/
 
 - .NET 8 (ASP.NET Core Web API)
 - Swagger / OpenAPI
-- Angular (planned frontend)
+- Angular 18
 
 ---
 
@@ -51,6 +52,7 @@ stock-monitor/
 The repository currently includes:
 
 - A price service for fetching stock market data
+- An Angular frontend for the web experience
 - Basic API structure for future expansion
 - Development-time API testing via Swagger
 
@@ -69,7 +71,7 @@ Before running the price service, add your Alpha Vantage API key to the service 
 
 For local development, this can be set in `backend/services/price-service/appsettings.Development.json`.
 
-### Run the Service
+### Run the Backend
 
 ```bash
 cd backend/services/price-service
@@ -78,13 +80,22 @@ dotnet run
 
 Access Swagger UI via the URL shown in the terminal.
 
+### Run the Frontend
+
+```bash
+cd frontend/web-app
+npm start
+```
+
+The frontend runs as a separate Angular application during development.
+
 ---
 
 ## Development Workflow
 
 - Backend services are developed independently inside the `services/` directory
 - Each service is designed to be modular and microservice-ready
-- Frontend will be developed as a separate Angular application inside the same repository
+- The frontend is developed as a separate Angular application inside the same repository
 
 ---
 
@@ -93,6 +104,7 @@ Access Swagger UI via the URL shown in the terminal.
 ### Phase 1 (Current)
 
 - Price service
+- Web frontend foundation
 - Basic API structure
 
 ### Phase 2

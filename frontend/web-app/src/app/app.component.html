@@ -1,0 +1,9 @@
+<h2>Stock Monitor</h2>
+
+<input [(ngModel)]="symbol" placeholder="Enter symbol (e.g. IBM)" />
+<button (click)="fetchPrice()">Get Price</button>
+
+<div *ngIf="price">
+  <h3>{{price.symbol}}</h3>
+  <p>Price: {{price.price}}</p>
+</div>
