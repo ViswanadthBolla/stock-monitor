@@ -52,6 +52,7 @@ stock-monitor/
 The repository currently includes:
 
 - A price service with mock stock price generation for development
+- An in-memory watchlist API on the backend
 - An Angular frontend for the web experience
 - A watchlist with automatic price refresh and price movement indicators
 - Basic API structure for future expansion
@@ -77,6 +78,11 @@ The backend runs on `http://localhost:5062`.
 
 Swagger is available in development.
 
+Current backend endpoints include:
+
+- `/price/{symbol}`
+- `/watchlist`
+
 ### Run the Frontend
 
 ```bash
@@ -86,6 +92,8 @@ npm start
 ```
 
 The frontend runs on `http://localhost:4200` and connects to the backend at `http://localhost:5062`.
+
+The frontend uses the backend watchlist API as its source of truth, so the watchlist persists across page refreshes while the backend is running.
 
 ---
 
@@ -102,6 +110,7 @@ The frontend runs on `http://localhost:4200` and connects to the backend at `htt
 ### Phase 1 (Current)
 
 - Price service
+- Watchlist API
 - Web frontend foundation
 - Watchlist auto-refresh
 - Basic API structure

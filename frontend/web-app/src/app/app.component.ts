@@ -23,6 +23,7 @@ export class AppComponent {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly http = inject(HttpClient);
   private readonly priceApiUrl = 'http://localhost:5062/price';
+  private readonly watchlistApiUrl = 'http://localhost:5062/watchlist';
   private isRefreshing = false;
 
   symbol = '';
@@ -30,51 +31,56 @@ export class AppComponent {
   error = '';
 
   constructor() {
-    interval(1000)
+    this.loadWatchlist();
+
+    interval(5000)
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.refreshPrices());
+  }
+
+  loadWatchlist() {
+    this.http.get<string[]>(this.watchlistApiUrl)
+      .subscribe({
+        next: (symbols) => {
+          this.watchlist = symbols.map(symbol => ({
+            symbol,
+            price: 0,
+            previousPrice: 0,
+            loading: true
+          }));
+
+          this.refreshPrices();
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   addStock() {
     const normalizedSymbol = this.symbol.trim().toUpperCase();
 
-    if (!normalizedSymbol) {
-      return;
-    }
+    if (!normalizedSymbol) return;
 
-    const exists = this.watchlist.some(
-      stock => stock.symbol === normalizedSymbol
-    );
-
-    if (exists) {
-      this.error = 'Stock already in watchlist';
-      return;
-    }
-
-    this.error = '';
-
-    this.http.get<Pick<WatchlistItem, 'symbol' | 'price'>>(
-      `${this.priceApiUrl}/${normalizedSymbol}`
-    )
+    this.http.post(`${this.watchlistApiUrl}/${normalizedSymbol}`, {})
       .subscribe({
-        next: (stock) => {
-          this.watchlist = [...this.watchlist, {
-            symbol: stock.symbol,
-            price: stock.price,
-            previousPrice: stock.price,
-            loading: false
-          }];
+        next: () => {
           this.symbol = '';
-          this.cdr.markForCheck();
+          this.error = '';
+          this.loadWatchlist();
         },
         error: () => {
-          this.error = 'Failed to fetch price';
+          this.error = 'Stock already exists';
+          this.cdr.markForCheck();
         }
       });
   }
 
   removeStock(index: number) {
-    this.watchlist = this.watchlist.filter((_, currentIndex) => currentIndex !== index);
+    const symbol = this.watchlist[index].symbol;
+
+    this.http.delete(`${this.watchlistApiUrl}/${symbol}`)
+      .subscribe(() => {
+        this.loadWatchlist();
+      });
   }
 
   trackBySymbol(_: number, stock: WatchlistItem) {

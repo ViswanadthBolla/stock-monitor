@@ -7,6 +7,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<IPriceService, PriceService>();
+builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
 
 builder.Services.AddCors(options =>
 {
