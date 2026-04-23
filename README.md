@@ -61,6 +61,13 @@ The repository currently includes:
 ### Prerequisites
 
 - .NET 8 SDK
+- Alpha Vantage API key
+
+### Configure the Price Service
+
+Before running the price service, add your Alpha Vantage API key to the service configuration.
+
+For local development, this can be set in `backend/services/price-service/appsettings.Development.json`.
 
 ### Run the Service
 
