@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  ViewChild,
+  inject
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { interval } from 'rxjs';
+import Chart from 'chart.js/auto';
 
 interface WatchlistItem {
   symbol: string;
@@ -19,13 +28,18 @@ interface WatchlistItem {
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppComponent {
+export class AppComponent implements AfterViewInit {
+  @ViewChild('chartCanvas') chartRef!: ElementRef<HTMLCanvasElement>;
+
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly http = inject(HttpClient);
   private readonly priceApiUrl = 'http://localhost:5062/price';
   private readonly watchlistApiUrl = 'http://localhost:5062/watchlist';
   private isRefreshing = false;
+  private chart: any;
+  private viewReady = false;
 
+  currentChartSymbol: string | null = null;
   symbol = '';
   watchlist: WatchlistItem[] = [];
   error = '';
@@ -38,7 +52,17 @@ export class AppComponent {
       .subscribe(() => this.refreshPrices());
   }
 
-  loadWatchlist() {
+  ngAfterViewInit() {
+    this.viewReady = true;
+
+    if (this.currentChartSymbol) {
+      this.loadChart(this.currentChartSymbol);
+    } else if (this.watchlist.length > 0) {
+      this.loadChart(this.watchlist[0].symbol);
+    }
+  }
+
+  loadWatchlist(selectedSymbol?: string) {
     this.http.get<string[]>(this.watchlistApiUrl)
       .subscribe({
         next: (symbols) => {
@@ -49,7 +73,23 @@ export class AppComponent {
             loading: true
           }));
 
+          const nextChartSymbol = selectedSymbol
+            ?? (this.currentChartSymbol && symbols.includes(this.currentChartSymbol)
+              ? this.currentChartSymbol
+              : symbols[0] ?? '');
+
+          if (!nextChartSymbol && this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+          }
+
+          this.currentChartSymbol = nextChartSymbol || null;
           this.refreshPrices();
+
+          if (this.viewReady && this.currentChartSymbol) {
+            this.loadChart(this.currentChartSymbol);
+          }
+
           this.cdr.markForCheck();
         }
       });
@@ -65,7 +105,9 @@ export class AppComponent {
         next: () => {
           this.symbol = '';
           this.error = '';
-          this.loadWatchlist();
+          this.currentChartSymbol = normalizedSymbol;
+          this.loadWatchlist(normalizedSymbol);
+          this.loadChart(normalizedSymbol);
         },
         error: () => {
           this.error = 'Stock already exists';
@@ -79,7 +121,51 @@ export class AppComponent {
 
     this.http.delete(`${this.watchlistApiUrl}/${symbol}`)
       .subscribe(() => {
-        this.loadWatchlist();
+        const nextSymbol = this.currentChartSymbol === symbol
+          ? this.watchlist.find(stock => stock.symbol !== symbol)?.symbol
+          : this.currentChartSymbol ?? undefined;
+
+        this.loadWatchlist(nextSymbol);
+      });
+  }
+
+  loadChart(symbol: string) {
+    if (!this.viewReady) {
+      this.currentChartSymbol = symbol;
+      return;
+    }
+
+    this.currentChartSymbol = symbol;
+
+    this.http.get<any[]>(`${this.priceApiUrl}/${symbol}/history`)
+      .subscribe(data => {
+        const labels = data.map(p => new Date(p.time).toLocaleTimeString());
+        const prices = data.map(p => p.price);
+
+        if (!this.chart) {
+          this.chart = new Chart(this.chartRef.nativeElement, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: symbol,
+                data: prices,
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              animation: false
+            }
+          });
+        } else {
+          this.chart.data.labels = labels;
+          this.chart.data.datasets[0].label = symbol;
+          this.chart.data.datasets[0].data = prices;
+          this.chart.update();
+        }
+
+        this.cdr.markForCheck();
       });
   }
 
@@ -126,6 +212,11 @@ export class AppComponent {
       })
       .finally(() => {
         this.isRefreshing = false;
+
+        if (this.currentChartSymbol) {
+          this.loadChart(this.currentChartSymbol);
+        }
+
         this.cdr.markForCheck();
       });
   }

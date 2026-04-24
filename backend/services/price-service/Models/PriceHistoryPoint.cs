@@ -1,7 +1,7 @@
 namespace price_service.Models;
 
-public class PriceResponse
+public class PriceHistoryPoint
 {
-    public string Symbol { get; set; } = "";
+    public DateTime Time { get; set; }
     public decimal Price { get; set; }
 }

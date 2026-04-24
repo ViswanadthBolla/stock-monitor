@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using price_service.Models;
 using price_service.Services;
 
 namespace price_service.Controllers;
@@ -25,5 +26,13 @@ public class PriceController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [HttpGet("{symbol}/history")]
+    public IActionResult GetHistory(string symbol)
+    {
+        var history = (_priceService as PriceService)?.GetHistory(symbol);
+
+        return Ok(history ?? new List<PriceHistoryPoint>());
     }
 }

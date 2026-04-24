@@ -6,8 +6,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<IPriceService, PriceService>();
+builder.Services.AddSingleton<PriceService>();
+builder.Services.AddSingleton<IPriceService>(sp => sp.GetRequiredService<PriceService>());
 builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
+builder.Services.AddHostedService<PriceUpdateWorker>();
 
 builder.Services.AddCors(options =>
 {

@@ -4,26 +4,67 @@ namespace price_service.Services;
 
 public class PriceService : IPriceService
 {
-    private static readonly Dictionary<string, decimal> _prices = new();
+    private static readonly Dictionary<string, PriceResponse> _cache = new();
+    private static readonly Dictionary<string, List<PriceHistoryPoint>> _history = new();
     private static readonly Random _random = new();
 
     public Task<PriceResponse?> GetPriceAsync(string symbol)
     {
         symbol = symbol.ToUpper();
 
-        if (!_prices.ContainsKey(symbol))
+        if (!_cache.ContainsKey(symbol))
         {
-            _prices[symbol] = _random.Next(100, 1000);
+            var basePrice = _random.Next(100, 1000);
+
+            _cache[symbol] = new PriceResponse
+            {
+                Symbol = symbol,
+                Price = basePrice
+            };
         }
 
-        var change = (decimal)(_random.NextDouble() * 4 - 2);
+        return Task.FromResult<PriceResponse?>(_cache[symbol]);
+    }
 
-        _prices[symbol] += change;
-
-        return Task.FromResult<PriceResponse?>(new PriceResponse
+    public void UpdatePrices(IEnumerable<string> symbols)
+    {
+        foreach (var symbol in symbols)
         {
-            Symbol = symbol,
-            Price = Math.Round(_prices[symbol], 2)
-        });
+            if (!_cache.ContainsKey(symbol)) continue;
+
+            var current = _cache[symbol];
+
+            var change = (decimal)(_random.NextDouble() * 4 - 2);
+
+            current.Price = Math.Round(current.Price + change, 2);
+
+            _cache[symbol] = current;
+
+            if (!_history.ContainsKey(symbol))
+            {
+                _history[symbol] = new List<PriceHistoryPoint>();
+            }
+
+            _history[symbol].Add(new PriceHistoryPoint
+            {
+                Time = DateTime.UtcNow,
+                Price = current.Price
+            });
+
+            if (_history[symbol].Count > 50)
+            {
+                _history[symbol].RemoveAt(0);
+            }
+        }
+    }
+
+    public IEnumerable<PriceHistoryPoint> GetHistory(string symbol)
+    {
+        symbol = symbol.ToUpper();
+
+        if (!_history.ContainsKey(symbol))
+            return new List<PriceHistoryPoint>();
+
+        return _history[symbol];
     }
 }
