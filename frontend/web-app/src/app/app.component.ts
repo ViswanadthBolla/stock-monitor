@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { interval } from 'rxjs';
 import Chart from 'chart.js/auto';
+import * as signalR from '@microsoft/signalr';
 
 interface WatchlistItem {
   symbol: string;
@@ -34,6 +35,7 @@ export class AppComponent {
   private readonly http = inject(HttpClient);
   private readonly historyApiUrl = 'http://localhost:5062/price';
   private readonly watchlistApiUrl = 'http://localhost:5062/watchlist';
+  private hubConnection!: signalR.HubConnection;
   private isRefreshing = false;
   private chart: Chart | null = null;
 
@@ -45,17 +47,46 @@ export class AppComponent {
   constructor() {
     this.loadWatchlist();
 
-    interval(5000)
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => this.refreshPrices());
+    this.hubConnection = new signalR.HubConnectionBuilder()
+      .withUrl('http://localhost:5062/priceHub')
+      .withAutomaticReconnect()
+      .build();
 
-    interval(10000) // every 10 seconds
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => {
-        if (this.currentChartSymbol) {
-          this.updateChartIncremental(this.currentChartSymbol);
+    this.hubConnection.start();
+
+    this.hubConnection.on('priceUpdate', (data: any) => {
+
+      this.watchlist = this.watchlist.map(stock =>
+        stock.symbol === data.symbol
+          ? {
+              symbol: data.symbol,
+              price: data.price,
+              previousPrice: stock.price,
+              loading: false
+            }
+          : stock
+      );
+
+      // update chart if selected
+      if (this.currentChartSymbol === data.symbol && this.chart) {
+        const time = new Date().toLocaleTimeString();
+
+        const labels = this.chart.data.labels as string[];
+        const chartData = this.chart.data.datasets[0].data as number[];
+
+        labels.push(time);
+        chartData.push(data.price);
+
+        if (labels.length > 50) {
+          labels.shift();
+          chartData.shift();
         }
-      });
+
+        this.chart.update();
+      }
+
+      this.cdr.markForCheck();
+    });
   }
 
   loadWatchlist(selectedSymbol?: string) {
