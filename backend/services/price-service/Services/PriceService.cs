@@ -21,6 +21,11 @@ public class PriceService : IPriceService
                 Symbol = symbol,
                 Price = basePrice
             };
+
+            _history[symbol] = new List<PriceHistoryPoint>
+            {
+                new PriceHistoryPoint { Time = DateTime.UtcNow, Price = basePrice }
+            };
         }
 
         return Task.FromResult<PriceResponse?>(_cache[symbol]);
@@ -30,7 +35,9 @@ public class PriceService : IPriceService
     {
         foreach (var symbol in symbols)
         {
-            if (!_cache.ContainsKey(symbol)) continue;
+            // Seed cache + history if this symbol is new
+            if (!_cache.ContainsKey(symbol))
+                GetPriceAsync(symbol).Wait();
 
             var current = _cache[symbol];
 

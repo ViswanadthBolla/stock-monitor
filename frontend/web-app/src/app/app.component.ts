@@ -1,5 +1,4 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
@@ -28,16 +27,15 @@ interface WatchlistItem {
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppComponent implements AfterViewInit {
+export class AppComponent {
   @ViewChild('chartCanvas') chartRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly http = inject(HttpClient);
-  private readonly priceApiUrl = 'http://localhost:5062/price';
+  private readonly historyApiUrl = 'http://localhost:5062/price';
   private readonly watchlistApiUrl = 'http://localhost:5062/watchlist';
   private isRefreshing = false;
-  private chart: any;
-  private viewReady = false;
+  private chart: Chart | null = null;
 
   currentChartSymbol: string | null = null;
   symbol = '';
@@ -50,16 +48,14 @@ export class AppComponent implements AfterViewInit {
     interval(5000)
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.refreshPrices());
-  }
 
-  ngAfterViewInit() {
-    this.viewReady = true;
-
-    if (this.currentChartSymbol) {
-      this.loadChart(this.currentChartSymbol);
-    } else if (this.watchlist.length > 0) {
-      this.loadChart(this.watchlist[0].symbol);
-    }
+    interval(10000) // every 10 seconds
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        if (this.currentChartSymbol) {
+          this.updateChartIncremental(this.currentChartSymbol);
+        }
+      });
   }
 
   loadWatchlist(selectedSymbol?: string) {
@@ -76,20 +72,15 @@ export class AppComponent implements AfterViewInit {
           const nextChartSymbol = selectedSymbol
             ?? (this.currentChartSymbol && symbols.includes(this.currentChartSymbol)
               ? this.currentChartSymbol
-              : symbols[0] ?? '');
+              : null);
 
           if (!nextChartSymbol && this.chart) {
             this.chart.destroy();
             this.chart = null;
           }
 
-          this.currentChartSymbol = nextChartSymbol || null;
+          this.currentChartSymbol = nextChartSymbol;
           this.refreshPrices();
-
-          if (this.viewReady && this.currentChartSymbol) {
-            this.loadChart(this.currentChartSymbol);
-          }
-
           this.cdr.markForCheck();
         }
       });
@@ -105,7 +96,6 @@ export class AppComponent implements AfterViewInit {
         next: () => {
           this.symbol = '';
           this.error = '';
-          this.currentChartSymbol = normalizedSymbol;
           this.loadWatchlist(normalizedSymbol);
           this.loadChart(normalizedSymbol);
         },
@@ -129,18 +119,19 @@ export class AppComponent implements AfterViewInit {
       });
   }
 
-  loadChart(symbol: string) {
-    if (!this.viewReady) {
-      this.currentChartSymbol = symbol;
-      return;
-    }
+  selectChart(symbol: string) {
+    this.currentChartSymbol = symbol;
+    this.loadChart(symbol);
+  }
 
+  loadChart(symbol: string) {
     this.currentChartSymbol = symbol;
 
-    this.http.get<any[]>(`${this.priceApiUrl}/${symbol}/history`)
-      .subscribe(data => {
-        const labels = data.map(p => new Date(p.time).toLocaleTimeString());
-        const prices = data.map(p => p.price);
+    this.http.get<any[]>(`${this.historyApiUrl}/${symbol}/history`)
+      .subscribe(history => {
+
+        const labels = history.map(p => new Date(p.time).toLocaleTimeString());
+        const prices = history.map(p => p.price);
 
         if (!this.chart) {
           this.chart = new Chart(this.chartRef.nativeElement, {
@@ -169,6 +160,38 @@ export class AppComponent implements AfterViewInit {
       });
   }
 
+  updateChartIncremental(symbol: string) {
+    this.http.get<any[]>(`${this.historyApiUrl}/${symbol}/history`)
+      .subscribe(history => {
+
+        if (!history || history.length === 0 || !this.chart) return;
+
+        const lastPoint = history[history.length - 1];
+
+        const lastLabel = new Date(lastPoint.time).toLocaleTimeString();
+        const lastPrice = lastPoint.price;
+
+        const labels = this.chart.data.labels as string[];
+        const data = this.chart.data.datasets[0].data as number[];
+
+        // avoid duplicate push
+        if (labels.length > 0 && labels[labels.length - 1] === lastLabel) {
+          return;
+        }
+
+        labels.push(lastLabel);
+        data.push(lastPrice);
+
+        // keep max 50 points
+        if (labels.length > 50) {
+          labels.shift();
+          data.shift();
+        }
+
+        this.chart.update();
+      });
+  }
+
   trackBySymbol(_: number, stock: WatchlistItem) {
     return stock.symbol;
   }
@@ -178,30 +201,25 @@ export class AppComponent implements AfterViewInit {
 
     this.isRefreshing = true;
 
-    this.watchlist = this.watchlist.map(stock => ({
-      ...stock,
-      loading: true
-    }));
-
     const requests = this.watchlist.map(stock =>
-      this.http.get<{ symbol: string; price: number }>(
-        `${this.priceApiUrl}/${stock.symbol}`
-      ).toPromise()
+      this.http.get<{ symbol: string; price: number }>(`${this.historyApiUrl}/${stock.symbol}`).toPromise()
     );
 
     Promise.all(requests)
       .then(results => {
-        this.watchlist = this.watchlist.map(stock => {
-          const updated = results.find(r => r?.symbol === stock.symbol);
+        this.watchlist = this.watchlist.map((stock, index) => {
+          const data = results[index];
 
-          return updated
-            ? {
-                symbol: updated.symbol,
-                price: updated.price,
-                previousPrice: stock.price,
-                loading: false
-              }
-            : { ...stock, loading: false };
+          if (!data) {
+            return { ...stock, loading: false };
+          }
+
+          return {
+            symbol: stock.symbol,
+            price: data.price,
+            previousPrice: stock.price,
+            loading: false
+          };
         });
       })
       .catch(() => {
@@ -212,11 +230,6 @@ export class AppComponent implements AfterViewInit {
       })
       .finally(() => {
         this.isRefreshing = false;
-
-        if (this.currentChartSymbol) {
-          this.loadChart(this.currentChartSymbol);
-        }
-
         this.cdr.markForCheck();
       });
   }
