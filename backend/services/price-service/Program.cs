@@ -10,6 +10,7 @@ builder.Services.AddSingleton<PriceService>();
 builder.Services.AddSingleton<IPriceService>(sp => sp.GetRequiredService<PriceService>());
 builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
 builder.Services.AddHostedService<PriceUpdateWorker>();
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
@@ -18,7 +19,8 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("http://localhost:4200")
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
@@ -36,5 +38,6 @@ app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 
 app.MapControllers();
+app.MapHub<PriceHub>("/priceHub");
 
 app.Run();

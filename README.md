@@ -54,7 +54,8 @@ The repository currently includes:
 - A price service with mock stock price generation for development
 - An in-memory watchlist API on the backend
 - An Angular frontend for the web experience
-- A watchlist with automatic price refresh and price movement indicators
+- A watchlist with real-time price updates via SignalR (WebSockets)
+- Live interactive stock charts using Chart.js
 - Basic API structure for future expansion
 - Development-time API testing via Swagger
 
@@ -81,7 +82,9 @@ Swagger is available in development.
 Current backend endpoints include:
 
 - `/price/{symbol}`
+- `/price/{symbol}/history`
 - `/watchlist`
+- `/priceHub` (SignalR WebSocket endpoint)
 
 ### Run the Frontend
 
@@ -107,23 +110,17 @@ The frontend uses the backend watchlist API as its source of truth, so the watch
 
 ## Roadmap
 
-### Phase 1 (Current)
+### Phase 1 & 2 (Current)
 
-- Price service
-- Watchlist API
+- Price service & Watchlist API
 - Web frontend foundation
-- Watchlist auto-refresh
-- Basic API structure
-
-### Phase 2
-
-- Watchlist service
-- Frontend integration
+- Real-time data streaming (SignalR)
+- Historical data and live charts
 
 ### Phase 3
 
 - Alerts and notifications
-- Historical data and charts
+- Persistent database storage (EF Core/PostgreSQL)
 
 ### Phase 4
 
